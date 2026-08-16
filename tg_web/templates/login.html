@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ZPR TG Admin — Вход</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body class="login-body">
+  <div class="login-card">
+    <h2>ZPR TG Admin</h2>
+    <p class="login-sub">Введите токен администратора</p>
+    {% if error %}
+    <div class="alert alert-error">{{ error }}</div>
+    {% endif %}
+    <form method="post" action="/login">
+      <input type="password" name="token" placeholder="ADMIN_TOKEN" required autofocus>
+      <button type="submit" class="btn btn-primary btn-block">Войти</button>
+    </form>
+  </div>
+</body>
+</html>

@@ -1,0 +1,250 @@
+/* ZPR TG Admin — minimal clean CSS */
+
+:root {
+  --bg:       #f5f6fa;
+  --surface:  #ffffff;
+  --border:   #e1e4e8;
+  --text:     #24292e;
+  --text-2:   #586069;
+  --primary:  #0366d6;
+  --primary-h: #0250a3;
+  --ok:       #28a745;
+  --warn:     #e36209;
+  --danger:   #d73a49;
+  --off:      #959da5;
+  --mono-bg:  #f0f2f5;
+  --radius:   6px;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+/* ── navbar ── */
+.navbar {
+  background: var(--text);
+  color: #fff;
+  padding: 0 1.5rem;
+  display: flex;
+  align-items: center;
+  height: 48px;
+  gap: 2rem;
+}
+.nav-brand { font-weight: 700; font-size: 15px; }
+.nav-links { display: flex; gap: 0.5rem; margin-left: auto; }
+.nav-links a {
+  color: #ffffffb0;
+  text-decoration: none;
+  padding: 0.3rem 0.7rem;
+  border-radius: var(--radius);
+  font-size: 13px;
+}
+.nav-links a:hover, .nav-links a.active { color: #fff; background: #ffffff20; }
+.nav-logout { opacity: 0.6; }
+
+/* ── container ── */
+.container { max-width: 1100px; margin: 0 auto; padding: 1.5rem; }
+
+/* ── cards ── */
+.cards { display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 2rem; }
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1rem 1.25rem;
+  min-width: 160px;
+  flex: 1;
+}
+.card-ok   { border-left: 3px solid var(--ok); }
+.card-warn { border-left: 3px solid var(--warn); }
+.card-label { font-size: 12px; color: var(--text-2); text-transform: uppercase; letter-spacing: 0.5px; }
+.card-value { font-size: 24px; font-weight: 700; margin: 0.25rem 0; }
+.card-sub   { font-size: 12px; color: var(--text-2); }
+
+/* ── dot indicator ── */
+.dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 4px; vertical-align: middle; }
+.dot-green { background: var(--ok); }
+.dot-red   { background: var(--danger); }
+
+/* ── tables ── */
+.table-wrap { overflow-x: auto; margin-bottom: 1.5rem; }
+.table-scroll { overflow-y: auto; max-height: 65vh; border: 1px solid var(--border); border-radius: var(--radius); }
+table { width: 100%; border-collapse: collapse; background: var(--surface); }
+.table-wrap table { border: 1px solid var(--border); border-radius: var(--radius); }
+.table-scroll table { border: none; }
+thead th { background: var(--mono-bg); font-size: 12px; text-transform: uppercase; color: var(--text-2); letter-spacing: 0.3px; position: sticky; top: 0; z-index: 1; }
+th, td { padding: 0.5rem 0.75rem; text-align: left; border-bottom: 1px solid var(--border); }
+tbody tr:hover { background: #f8f9fb; }
+.nowrap { white-space: nowrap; }
+.mono { font-family: "SF Mono", Consolas, monospace; font-size: 12px; }
+.center { text-align: center; }
+.text-cell { max-width: 350px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.row-disabled { opacity: 0.5; }
+
+/* ── badges ── */
+.badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 600;
+}
+.badge-ok  { background: #dcffe4; color: var(--ok); }
+.badge-off { background: #eee; color: var(--off); }
+
+/* ── buttons ── */
+.btn {
+  display: inline-block;
+  padding: 0.4rem 0.9rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 13px;
+  cursor: pointer;
+  text-decoration: none;
+  line-height: 1.4;
+}
+.btn:hover { background: var(--mono-bg); }
+.btn-primary { background: var(--primary); color: #fff; border-color: var(--primary); }
+.btn-primary:hover { background: var(--primary-h); }
+.btn-danger { color: var(--danger); border-color: var(--danger); }
+.btn-danger:hover { background: #ffeef0; }
+.btn-xs { padding: 0.15rem 0.5rem; font-size: 12px; }
+.btn-sm { padding: 0.3rem 0.7rem; font-size: 12px; }
+.btn-block { width: 100%; }
+
+/* ── forms ── */
+input[type="text"], input[type="password"] {
+  padding: 0.45rem 0.7rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 14px;
+  width: 100%;
+  max-width: 350px;
+}
+input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 2px #0366d620; }
+
+/* ── controls panel ── */
+.controls-panel {
+  display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 1.5rem;
+}
+.control-group {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.75rem 1rem;
+  flex: 1;
+  min-width: 280px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+.control-header { display: flex; align-items: center; gap: 0.5rem; }
+.control-actions { display: flex; align-items: center; gap: 0.5rem; }
+.control-form { display: flex; align-items: center; gap: 0.5rem; }
+.input-sm {
+  width: 70px; padding: 0.25rem 0.5rem; font-size: 13px;
+  border: 1px solid var(--border); border-radius: var(--radius);
+  max-width: none;
+}
+
+.form-card, .hint-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.25rem;
+  margin-bottom: 1.5rem;
+}
+.form-card h3, .hint-card h3 { margin-bottom: 0.75rem; font-size: 15px; }
+.form-inline { display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap; }
+.inline-form { display: inline; }
+.form-footer { display: flex; align-items: center; gap: 1rem; margin-top: 1rem; }
+
+/* ── api key ── */
+.api-key {
+  font-family: "SF Mono", Consolas, monospace;
+  font-size: 11px;
+  background: var(--mono-bg);
+  padding: 2px 6px;
+  border-radius: 3px;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: inline-block;
+  vertical-align: middle;
+}
+
+/* ── page header ── */
+.page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; }
+.client-info { margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.75rem; }
+
+/* ── access toolbar ── */
+.access-toolbar { display: flex; gap: 0.5rem; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; }
+.access-toolbar .btn-primary { margin-left: auto; }
+.input-filter {
+  padding: 0.3rem 0.7rem; font-size: 13px; border: 1px solid var(--border);
+  border-radius: var(--radius); width: 250px; max-width: none;
+}
+.filter-stats {
+  font-size: 13px; color: var(--text-2); margin-bottom: 0.5rem; padding: 0.25rem 0;
+}
+
+/* ── checkboxes ── */
+input[type="checkbox"] { width: 16px; height: 16px; cursor: pointer; }
+
+/* ── log viewer ── */
+.log-viewer {
+  background: #1e1e2e;
+  color: #cdd6f4;
+  padding: 1rem;
+  border-radius: var(--radius);
+  font-family: "SF Mono", Consolas, monospace;
+  font-size: 11px;
+  line-height: 1.6;
+  max-height: 400px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+/* ── login ── */
+.login-body { display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+.login-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 2rem;
+  width: 360px;
+  text-align: center;
+}
+.login-card h2 { margin-bottom: 0.25rem; }
+.login-sub { color: var(--text-2); margin-bottom: 1.25rem; font-size: 13px; }
+.login-card input { margin-bottom: 1rem; max-width: 100%; }
+
+/* ── alerts ── */
+.alert { padding: 0.5rem 0.75rem; border-radius: var(--radius); margin-bottom: 1rem; font-size: 13px; }
+.alert-error { background: #ffeef0; color: var(--danger); border: 1px solid #ffc8cc; }
+
+/* ── misc ── */
+h1 { font-size: 22px; margin-bottom: 1rem; }
+h2 { font-size: 17px; margin: 1.5rem 0 0.75rem; }
+.text-muted { color: var(--text-2); font-size: 13px; }
+.empty { color: var(--text-2); padding: 2rem; text-align: center; }
+.footer { text-align: center; padding: 2rem 1rem; color: var(--off); }
+.hint-card pre { font-size: 12px; white-space: pre-wrap; background: var(--mono-bg); padding: 0.75rem; border-radius: 4px; }
+
+/* ── responsive ── */
+@media (max-width: 768px) {
+  .cards { flex-direction: column; }
+  .form-inline { flex-direction: column; align-items: stretch; }
+  .form-inline input { max-width: 100%; }
+  .page-header { flex-direction: column; gap: 0.5rem; align-items: flex-start; }
+}

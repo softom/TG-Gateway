@@ -1,0 +1,121 @@
+{% extends "_base.html" %}
+{% set active = "clients" %}
+
+{% block title %}Доступ: {{ client.name }} — ZPR TG Admin{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>Доступ: {{ client.name }}</h1>
+  <a href="/clients" class="btn btn-sm">&larr; К списку клиентов</a>
+</div>
+
+<div class="client-info">
+  <span class="badge {% if client.is_active %}badge-ok{% else %}badge-off{% endif %}">
+    {{ 'Активен' if client.is_active else 'Отключён' }}
+  </span>
+  <code class="mono">{{ client.api_key[:12] }}…</code>
+  {% if client.note %}<span class="text-muted"> · {{ client.note }}</span>{% endif %}
+</div>
+
+<form method="post" action="/clients/{{ client.id }}/access">
+  <div class="access-toolbar">
+    <input type="text" id="chat-filter" placeholder="Поиск по названию чата…" class="input-filter" autofocus>
+    <button type="button" class="btn btn-xs" onclick="checkAll('read')">Все: читать</button>
+    <button type="button" class="btn btn-xs" onclick="checkAll('write')">Все: писать</button>
+    <button type="button" class="btn btn-xs" onclick="uncheckAll()">Снять все</button>
+    <button type="submit" class="btn btn-primary btn-sm">Сохранить</button>
+  </div>
+
+  <div class="filter-stats">
+    Всего: <strong>{{ chats|length }}</strong> чатов ·
+    Показано: <strong id="shown-count">{{ chats|length }}</strong> ·
+    Выбрано: <strong id="sel-count">0</strong>
+  </div>
+
+  <div class="table-scroll">
+  <table>
+    <thead>
+      <tr>
+        <th>Чат</th>
+        <th>Тип</th>
+        <th>chat_id</th>
+        <th class="center">Читать</th>
+        <th class="center">Писать</th>
+      </tr>
+    </thead>
+    <tbody id="chat-tbody">
+      {% for c in chats %}
+      {% set acc = access_map.get(c.chat_id, {}) %}
+      <tr data-title="{{ (c.title or '')|lower }}">
+        <td>{{ c.title or '(без названия)' }}</td>
+        <td>{{ c.kind or '—' }}</td>
+        <td class="mono">{{ c.chat_id }}</td>
+        <td class="center">
+          <input type="checkbox" name="read_{{ c.chat_id }}"
+                 class="cb-read" {% if acc.get('can_read') %}checked{% endif %}>
+        </td>
+        <td class="center">
+          <input type="checkbox" name="write_{{ c.chat_id }}"
+                 class="cb-write" {% if acc.get('can_write') %}checked{% endif %}>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+
+  <div class="form-footer">
+    <button type="submit" class="btn btn-primary">Сохранить</button>
+    <span class="text-muted">Всего: {{ chats|length }} · Выбрано: <span id="sel-count2">0</span></span>
+  </div>
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const tbody = document.getElementById('chat-tbody');
+const rows = Array.from(tbody.querySelectorAll('tr'));
+const filterInput = document.getElementById('chat-filter');
+const shownEl = document.getElementById('shown-count');
+
+// Filter
+filterInput.addEventListener('input', function() {
+  const q = this.value.toLowerCase().trim();
+  let shown = 0;
+  rows.forEach(row => {
+    const match = !q || row.dataset.title.includes(q);
+    row.style.display = match ? '' : 'none';
+    if (match) shown++;
+  });
+  shownEl.textContent = shown;
+});
+
+// Check all (only visible)
+function checkAll(cls) {
+  rows.forEach(row => {
+    if (row.style.display !== 'none') {
+      const cb = row.querySelector('.cb-' + cls);
+      if (cb) cb.checked = true;
+    }
+  });
+  updateCount();
+}
+function uncheckAll() {
+  rows.forEach(row => {
+    if (row.style.display !== 'none') {
+      row.querySelectorAll('input[type=checkbox]').forEach(cb => cb.checked = false);
+    }
+  });
+  updateCount();
+}
+function updateCount() {
+  const reads = document.querySelectorAll('.cb-read:checked').length;
+  const writes = document.querySelectorAll('.cb-write:checked').length;
+  const text = reads + ' R / ' + writes + ' W';
+  document.getElementById('sel-count').textContent = text;
+  document.getElementById('sel-count2').textContent = text;
+}
+document.querySelectorAll('input[type=checkbox]').forEach(cb => cb.addEventListener('change', updateCount));
+updateCount();
+</script>
+{% endblock %}

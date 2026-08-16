@@ -1,0 +1,17 @@
+# секреты и сессии — НИКОГДА в git
+config.py
+*.session
+*.session-journal
+.tg_session*
+.auth_hash
+
+# рантайм
+__pycache__/
+*.pyc
+*.pyo
+qrweb/
+storage/
+venv/
+.venv/
+*.log
+.env

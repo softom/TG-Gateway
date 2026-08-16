@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}ZPR TG Admin{% endblock %}</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <nav class="navbar">
+    <div class="nav-brand">ZPR TG Admin</div>
+    <div class="nav-links">
+      <a href="/" class="{% if active == 'dashboard' %}active{% endif %}">Дашборд</a>
+      <a href="/clients" class="{% if active == 'clients' %}active{% endif %}">Клиенты</a>
+      <a href="/logout" class="nav-logout">Выход</a>
+    </div>
+  </nav>
+
+  <main class="container">
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer class="footer">
+    <small>ZPR TG Admin · US-сервер · {{ now().strftime('%Y-%m-%d') if now is defined else '' }}</small>
+  </footer>
+
+  {% block scripts %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,131 @@
+{% extends "_base.html" %}
+{% set active = "dashboard" %}
+
+{% block title %}Дашборд — ZPR TG Admin{% endblock %}
+
+{% block content %}
+<h1>Дашборд синхронизации</h1>
+
+{# ── Service controls ── #}
+<div class="controls-panel">
+  <div class="control-group">
+    <div class="control-header">
+      <span class="dot {% if service.active == 'active' %}dot-green{% else %}dot-red{% endif %}"></span>
+      <strong>Листенер</strong>
+      <span class="badge {% if service.active == 'active' %}badge-ok{% else %}badge-off{% endif %}">
+        {{ service.active }}
+      </span>
+      {% if service.memory %}<span class="text-muted">· {{ service.memory }}</span>{% endif %}
+    </div>
+    <div class="control-actions">
+      {% if service.active == 'active' %}
+      <form method="post" action="/ctl/listener/stop" class="inline-form">
+        <button class="btn btn-sm btn-danger">⏹ Остановить</button>
+      </form>
+      {% else %}
+      <form method="post" action="/ctl/listener/start" class="inline-form">
+        <button class="btn btn-sm btn-primary">▶ Запустить</button>
+      </form>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="control-group">
+    <div class="control-header">
+      <span class="dot {% if backfill.running %}dot-green{% else %}dot-red{% endif %}"></span>
+      <strong>Backfill</strong>
+      <span class="badge {% if backfill.running %}badge-ok{% else %}badge-off{% endif %}">
+        {% if backfill.running %}PID {{ backfill.pid }}{% else %}не запущен{% endif %}
+      </span>
+    </div>
+    <div class="control-actions">
+      {% if backfill.running %}
+      <form method="post" action="/ctl/backfill/stop" class="inline-form"
+            onsubmit="return confirm('Остановить backfill?')">
+        <button class="btn btn-sm btn-danger">⏹ Остановить</button>
+      </form>
+      {% else %}
+      <form method="post" action="/ctl/backfill/start" class="inline-form control-form">
+        <input type="number" name="days" value="365" min="1" max="730" class="input-sm">
+        <span class="text-muted">дней</span>
+        <button class="btn btn-sm btn-primary">▶ Запустить</button>
+      </form>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+{# ── Status cards ── #}
+<div class="cards">
+  <div class="card">
+    <div class="card-label">Сообщений</div>
+    <div class="card-value">{{ "{:,}".format(total_messages) }}</div>
+    <div class="card-sub">сегодня: {{ today_messages }}</div>
+  </div>
+
+  <div class="card">
+    <div class="card-label">Чатов</div>
+    <div class="card-value">{{ chat_count }}</div>
+  </div>
+
+  <div class="card">
+    <div class="card-label">Клиентов</div>
+    <div class="card-value">{{ clients_count }}</div>
+  </div>
+
+  {% if disk %}
+  <div class="card {% if disk.pct > 85 %}card-warn{% endif %}">
+    <div class="card-label">Диск</div>
+    <div class="card-value">{{ disk.used }} / {{ disk.total }} GB</div>
+    <div class="card-sub">свободно {{ disk.free }} GB ({{ 100 - disk.pct }}%)</div>
+  </div>
+  {% endif %}
+</div>
+
+{# ── Recent messages ── #}
+<h2>Последние сообщения</h2>
+<div class="table-wrap">
+<table>
+  <thead>
+    <tr><th>Дата</th><th>Чат</th><th>Отправитель</th><th>Текст</th></tr>
+  </thead>
+  <tbody>
+    {% for m in recent %}
+    <tr>
+      <td class="nowrap">{{ m.msg_date[:16] if m.msg_date else '—' }}</td>
+      <td>{{ m._chat_title }}</td>
+      <td>{{ m.sender_name or '—' }}</td>
+      <td class="text-cell">{{ (m.text or '')[0:120] }}{% if m.text and m.text|length > 120 %}…{% endif %}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+
+{# ── Chat stats ── #}
+<h2>Чаты ({{ chat_count }})</h2>
+<div class="table-wrap">
+<table>
+  <thead>
+    <tr><th>Название</th><th>Тип</th><th>chat_id</th><th>Обновлён</th></tr>
+  </thead>
+  <tbody>
+    {% for c in chats %}
+    <tr>
+      <td>{{ c.title or '—' }}</td>
+      <td>{{ c.kind or '—' }}</td>
+      <td class="mono">{{ c.chat_id }}</td>
+      <td class="nowrap">{{ c.updated_at[:16] if c.updated_at else '—' }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+
+{# ── Log tail ── #}
+{% if log_lines %}
+<h2>Лог (последние {{ log_lines|length }} строк)</h2>
+<pre class="log-viewer">{% for line in log_lines %}{{ line }}
+{% endfor %}</pre>
+{% endif %}
+{% endblock %}

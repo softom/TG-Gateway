@@ -1,0 +1,17 @@
+[Unit]
+Description=ZPR TG Web Admin (FastAPI)
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/zpr/app
+Environment=ADMIN_TOKEN=changeme
+ExecStart=/opt/zpr/venv/bin/uvicorn tg_web_admin:app --host 0.0.0.0 --port 8080
+Restart=always
+RestartSec=5
+StandardOutput=append:/opt/zpr/logs/web_admin.log
+StandardError=append:/opt/zpr/logs/web_admin.log
+
+[Install]
+WantedBy=multi-user.target
