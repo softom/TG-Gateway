@@ -12,7 +12,7 @@ FastAPI + Jinja2. Порт 8080.
   uvicorn tg_web_admin:app --host 0.0.0.0 --port 8080  # prod
 
 Переменные (config.py или env):
-  ADMIN_TOKEN  — токен доступа к админ-панели (default: changeme).
+  ADMIN_TOKEN  — токен доступа к админ-панели (обязателен, ≥16 символов; без него сервис не стартует).
 """
 
 import os
@@ -47,7 +47,11 @@ templates = Jinja2Templates(directory=BASE_DIR / "tg_web" / "templates")
 sb = sb_create(SUPABASE_URL, SUPABASE_SECRET_KEY)
 
 ADMIN_TOKEN = os.environ.get("ADMIN_TOKEN",
-                              getattr(__import__("config"), "ADMIN_TOKEN", "changeme"))
+                              getattr(__import__("config"), "ADMIN_TOKEN", ""))
+# Fail-closed: без настоящего токена админка и /ctl/* не стартуют.
+if len(ADMIN_TOKEN) < 16 or ADMIN_TOKEN.lower() in ("changeme", "change_me", "__set_at_deploy__"):
+    raise RuntimeError("ADMIN_TOKEN не задан или слабый (нужно ≥16 символов) — "
+                       "задайте в systemd Environment=ADMIN_TOKEN или config.py")
 
 # ── helpers ──────────────────────────────────────────────────────────
 def _now_iso():
@@ -168,19 +172,29 @@ async def dashboard(request: Request, _=Depends(require_admin)):
     backfill = _backfill_status()
     disk = _disk_info()
 
-    # Чаты
-    chats = sb.table("tg_chats").select("*").order("title").execute().data or []
+    # Все БД-запросы обёрнуты: tg_messages большая, на free-tier Supabase медленный
+    # count/order может упереться в statement_timeout (57014) — дашборд не должен
+    # из-за этого падать 500, пусть деградирует по счётчикам.
+    def _q(fn, default):
+        try:
+            return fn()
+        except Exception as exc:
+            print(f"  ⚠ dashboard query: {type(exc).__name__}: {exc}", flush=True)
+            return default
 
-    # Счётчики
-    total = sb.table("tg_messages").select("id", count="exact").execute().count or 0
+    # Чаты
+    chats = _q(lambda: sb.table("tg_chats").select("*").order("title").execute().data, None) or []
+
+    # Счётчики: total — ESTIMATED (мгновенно; exact COUNT(*) по огромной таблице = timeout)
+    total = _q(lambda: sb.table("tg_messages").select("id", count="estimated").execute().count, "?")
     today_iso = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0).isoformat()
-    today_count = (sb.table("tg_messages").select("id", count="exact")
-                   .gte("ingested_at", today_iso).execute().count or 0)
+    today_count = _q(lambda: (sb.table("tg_messages").select("id", count="exact")
+                              .gte("ingested_at", today_iso).execute().count), "?")
 
     # Последние сообщения
-    recent = (sb.table("tg_messages")
-              .select("chat_id,message_id,sender_name,msg_date,text")
-              .order("msg_date", desc=True).limit(25).execute().data or [])
+    recent = _q(lambda: (sb.table("tg_messages")
+                         .select("chat_id,message_id,sender_name,msg_date,text")
+                         .order("msg_date", desc=True).limit(25).execute().data), None) or []
 
     # Подмешиваем название чата
     chat_map = {c["chat_id"]: c.get("title", str(c["chat_id"])) for c in chats}
@@ -189,8 +203,8 @@ async def dashboard(request: Request, _=Depends(require_admin)):
 
     log_lines = _log_tail(40)
 
-    # Клиенты (count)
-    clients_count = sb.table("tg_clients").select("id", count="exact").execute().count or 0
+    # Клиенты (count) — таблица крошечная, exact безопасен
+    clients_count = _q(lambda: sb.table("tg_clients").select("id", count="exact").execute().count, "?")
 
     return templates.TemplateResponse(request=request, name="dashboard.html", context={
         "service": service,

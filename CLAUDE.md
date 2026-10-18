@@ -2,6 +2,7 @@
 
 Сервис-шлюз Telegram → облачный реестр → Client API для клиентов (ЗПР, БД студентов).
 Отделён из проекта ЗПР 2026-07-31. Обзор — [README.md](README.md); детали — [docs/architecture.md](docs/architecture.md).
+**Рабочая WIKI (Obsidian/Dropbox):** `E:\Dropbox\Приложения\remotely-save\TG-Gateway\WIKI\` (`00_INDEX`, `01_Архитектура`, `02_Client_API`) — актуальная дока ведётся там; `docs/architecture.md` в репо — снапшот.
 
 ## Инфраструктура
 - **Сервер:** Aeza `77.110.125.137` (Ubuntu 26.04, 1 CPU / 2 GB / 30 GB, Charlotte US).

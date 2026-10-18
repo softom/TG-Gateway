@@ -1,6 +1,6 @@
 ---
 type: architecture
-title: Внешний US-сервер и облачный Telegram-реестр
+title: TG-Gateway — архитектура (снапшот; рабочая WIKI в Dropbox)
 created: 2026-05-28
 updated: 2026-06-29
 tags:
