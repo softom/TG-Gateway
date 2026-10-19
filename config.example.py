@@ -24,3 +24,12 @@ STORAGE_DIR = Path("/opt/zpr/storage")   # TELEGRAM/<ГГГГ>/<ММ>/<abs_chat_
 
 # ADMIN_TOKEN у web-админки берётся из окружения (systemd `Environment=ADMIN_TOKEN`),
 # а НЕ отсюда — см. deploy.
+
+# Медиа: порог свободного места (ниже — только метаданные) и чаты без скачивания медиа.
+DISK_MIN_FREE_GB = 3.0
+MEDIA_SKIP_CHATS = [-1001587432709]   # ЧАТ How2AI
+
+# Dropbox-архив вложений (archive_media.py) — креды в secrets.env DROPBOX_ARCHIVE_*
+# DROPBOX_APP_KEY = "..."
+# DROPBOX_APP_SECRET = "..."
+# DROPBOX_REFRESH_TOKEN = "..."

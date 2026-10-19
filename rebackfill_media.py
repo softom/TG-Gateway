@@ -26,7 +26,8 @@ from config import (TG_API_ID, TG_API_HASH, TG_SESSION_PATH, STORAGE_DIR,
 from telethon import TelegramClient
 from supabase import create_client
 from tg_raw_listener import (_abs_chat_id, _sanitize, _default_filename,
-                             _detect_media, TELEGRAM_STORAGE_ROOT, _DOWNLOAD_KINDS)
+                             _detect_media, TELEGRAM_STORAGE_ROOT, _DOWNLOAD_KINDS,
+                             MEDIA_SKIP_CHATS)
 from archive_manifest import archived
 
 sb = create_client(SUPABASE_URL, SUPABASE_SECRET_KEY)
@@ -85,7 +86,7 @@ async def main() -> None:
     if args and args[0] == "--client":
         targets = _client_targets(args[1])
     elif args and args[0] == "--since":
-        exclude = set()
+        exclude = set(MEDIA_SKIP_CHATS)
         if "--exclude" in args:
             exclude = {int(x) for x in args[args.index("--exclude") + 1].split(",") if x}
         targets = _since_targets(args[1], exclude)

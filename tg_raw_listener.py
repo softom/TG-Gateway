@@ -41,8 +41,14 @@ from config import (
     STORAGE_DIR, SUPABASE_URL, SUPABASE_SECRET_KEY,
 )
 
+import config as _cfg
+
 TELEGRAM_STORAGE_ROOT = "TELEGRAM"
-DISK_MIN_FREE_GB = 5.0          # ниже этого порога медиа не качаем (только метаданные) — оставляем запас на ОС/логи/swap
+# Ниже порога медиа не качаем (только метаданные) — запас на ОС/логи/swap; место раз в месяц
+# освобождает archive_media.py (перенос старше 4 мес. в Dropbox).
+DISK_MIN_FREE_GB = float(getattr(_cfg, "DISK_MIN_FREE_GB", 3.0))
+# Чаты, из которых медиа НЕ качаем (текст собирается): шумные/внешние сообщества.
+MEDIA_SKIP_CHATS = {int(x) for x in getattr(_cfg, "MEDIA_SKIP_CHATS", ())}
 _DOWNLOAD_KINDS = {"photo", "document", "video", "audio", "voice", "sticker", "gif"}
 _low_disk_warned = False
 
@@ -275,7 +281,7 @@ async def _save_message(sb, client, msg: Message, chat_id: int) -> dict | None:
     media_rel_path = None
     final_file_name = file_name
 
-    if has_media and kind in _DOWNLOAD_KINDS:
+    if has_media and kind in _DOWNLOAD_KINDS and chat_id not in MEDIA_SKIP_CHATS:
         if _disk_free_gb(STORAGE_DIR) < DISK_MIN_FREE_GB:
             if not _low_disk_warned:
                 print(f"  ⚠ свободно <{DISK_MIN_FREE_GB} GB — медиа НЕ качаю, только метаданные", flush=True)
