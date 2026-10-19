@@ -1,0 +1,11 @@
+[Unit]
+Description=TG-Gateway: бэкап вложений старше 4 мес. в Dropbox (archive_media.py)
+After=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/zpr/app
+ExecStart=/usr/bin/nice -n 19 /usr/bin/ionice -c 3 /opt/zpr/venv/bin/python /opt/zpr/app/archive_media.py
+TimeoutStartSec=12h
+StandardOutput=append:/opt/zpr/logs/archive.log
+StandardError=append:/opt/zpr/logs/archive.log

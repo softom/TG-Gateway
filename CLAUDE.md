@@ -23,6 +23,13 @@
 - **Авторизация сессии:** код с Aeza-IP не доставляется → **QR-login** через reverse-proxy на Beget (`qrproxy.py` :8091 → Aeza:8090). Прямой HTTP к Aeza из Крыма недоступен.
 - ⚠️ **Обычная Claude-сессия в auto-режиме блокирует SSH на внешний хост** (anti-injection). Нужен режим **acceptEdits**.
 
+## Архив вложений (с 2026-10-19)
+- На сервере хранятся вложения за **4 календарных месяца** (текущий + 3). Старше — переносятся в Dropbox-приложение **TELEGRAM_UG** (App folder → `E:\Dropbox\Приложения\TELEGRAM_UG\`), раскладка `/<Диалог> [<abs_chat_id>]/<YYYY-MM>/<msg>_<file>`.
+- `archive_media.py` (сверка Dropbox content-hash → только потом удаление с сервера) + манифест `storage/ARCHIVED.tsv` (`archive_manifest.py`). `/api/v1/media` по архивным → **410**; `rebackfill_media.py` их не качает.
+- Запуск: `tg-archive.service` (oneshot) ← `tg-archive.timer` (1-го числа 03:00 UTC) и кнопка «💾 Бэкап сейчас» на дашборде. Лог `/opt/zpr/logs/archive.log`.
+- Креды Dropbox: `secrets.env` `DROPBOX_ARCHIVE_*`, на сервере `config.py` `DROPBOX_*`. ⚠ Права токена фиксируются при выдаче кода — авторизовать ссылкой с явным `&scope=files.metadata.read files.content.write files.content.read`.
+- Причина: с 23.07 по 19.10 медиа не качались вовсе — листенер не качает при свободном месте <5 GB (`DISK_MIN_FREE_GB`), диск 30 GB общий с VPN.
+
 ## Client API + клиенты
 - Эндпоинты: `/api/v1/{chats,messages,search,media,status}`, `/health`, `POST /ctl/send-file`. См. README.
 - **Клиент студентов:** `bf2ed1bd-4d10-4b36-8e29-37c12d07ed01` — 45 чатов (группы Арх/б-22-1-о, Арх/б-22-2-о + 42 DM), read+write. Ключ у пользователя / в БД-сессии.

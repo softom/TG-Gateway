@@ -12,6 +12,9 @@
 zpr-tg-listener и zpr-tg-backfill + pkill -f tg_raw_listener.py):
     python rebackfill_media.py <chat>:<msg> <chat>:<msg> ...   # точечно
     python rebackfill_media.py --client <client_id>           # все пробелы клиента
+    python rebackfill_media.py --since 2026-07-01 [--exclude <chat_id>,...]
+                                                              # все чаты с даты; мелкие файлы первыми
+Файлы, перенесённые в Dropbox-архив (ARCHIVED.tsv), не качаются.
 """
 import asyncio
 import sys
@@ -24,12 +27,15 @@ from telethon import TelegramClient
 from supabase import create_client
 from tg_raw_listener import (_abs_chat_id, _sanitize, _default_filename,
                              _detect_media, TELEGRAM_STORAGE_ROOT, _DOWNLOAD_KINDS)
+from archive_manifest import archived
 
 sb = create_client(SUPABASE_URL, SUPABASE_SECRET_KEY)
 BASE = Path(STORAGE_DIR).resolve()
 
 
 def _has_file(chat_id: int, message_id: int, media_path: str | None) -> bool:
+    if archived(_abs_chat_id(chat_id), message_id):  # уже в Dropbox-архиве — не тянуть обратно
+        return True
     if media_path and (BASE / media_path).is_file():
         return True
     for c in BASE.glob(f"TELEGRAM/*/*/{_abs_chat_id(chat_id)}/{message_id}_*"):
@@ -56,10 +62,33 @@ def _client_targets(client_id: str) -> list[tuple[int, int]]:
             and not _has_file(m["chat_id"], m["message_id"], m["media_path"])]
 
 
+def _since_targets(since: str, exclude: set[int]) -> list[tuple[int, int]]:
+    media, s = [], 0
+    while True:
+        ch = (sb.table("tg_messages")
+              .select("chat_id,message_id,media_kind,media_path,media_size")
+              .eq("has_media", True).gte("msg_date", since)
+              .range(s, s + 999).execute().data or [])
+        media += ch
+        if len(ch) < 1000:
+            break
+        s += 1000
+    todo = [m for m in media
+            if m["media_kind"] in _DOWNLOAD_KINDS and m["chat_id"] not in exclude
+            and not _has_file(m["chat_id"], m["message_id"], m["media_path"])]
+    todo.sort(key=lambda m: m.get("media_size") or 0)  # мелкие первыми: максимум файлов до упора в место
+    return [(m["chat_id"], m["message_id"]) for m in todo]
+
+
 async def main() -> None:
     args = sys.argv[1:]
     if args and args[0] == "--client":
         targets = _client_targets(args[1])
+    elif args and args[0] == "--since":
+        exclude = set()
+        if "--exclude" in args:
+            exclude = {int(x) for x in args[args.index("--exclude") + 1].split(",") if x}
+        targets = _since_targets(args[1], exclude)
     else:
         targets = [tuple(int(x) for x in a.split(":")) for a in args]
     print(f"targets (файлов к докачке): {len(targets)}", flush=True)

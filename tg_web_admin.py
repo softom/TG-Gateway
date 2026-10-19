@@ -118,6 +118,38 @@ def _backfill_status() -> dict:
     return info
 
 
+def _archive_status() -> dict:
+    """Бэкап вложений в Dropbox (tg-archive.service/.timer, archive_media.py)."""
+    info = {"state": "?", "next": "", "last": "", "archived": 0, "archived_gb": 0.0}
+    try:
+        info["state"] = subprocess.run(
+            ["systemctl", "is-active", "tg-archive.service"],
+            capture_output=True, text=True, timeout=5).stdout.strip()
+        info["next"] = subprocess.run(
+            ["systemctl", "show", "tg-archive.timer", "-p", "NextElapseUSecRealtime", "--value"],
+            capture_output=True, text=True, timeout=5).stdout.strip()
+    except Exception:
+        pass
+    log = Path("/opt/zpr/logs/archive.log")
+    if log.exists():
+        try:
+            lines = [l for l in log.read_text(errors="replace").splitlines()
+                     if l.startswith("DONE") or "хранить с" in l or l.lstrip().startswith("...")]
+            info["last"] = " · ".join(lines[-2:])
+        except Exception:
+            pass
+    try:
+        from archive_manifest import MANIFEST
+        if MANIFEST.exists():
+            rows = [l.split("\t") for l in MANIFEST.read_text(encoding="utf-8").splitlines() if l]
+            info["archived"] = len(rows)
+            info["archived_gb"] = round(sum(int(r[1]) for r in rows
+                                            if len(r) > 1 and r[1].isdigit()) / 2**30, 2)
+    except Exception:
+        pass
+    return info
+
+
 # ── auth ─────────────────────────────────────────────────────────────
 def require_admin(request: Request):
     """Проверка admin-токена: cookie или ?token=... → /login при отсутствии."""
@@ -170,6 +202,7 @@ async def logout():
 async def dashboard(request: Request, _=Depends(require_admin)):
     service = _service_status()
     backfill = _backfill_status()
+    archive = _archive_status()
     disk = _disk_info()
 
     # Все БД-запросы обёрнуты: tg_messages большая, на free-tier Supabase медленный
@@ -209,6 +242,7 @@ async def dashboard(request: Request, _=Depends(require_admin)):
     return templates.TemplateResponse(request=request, name="dashboard.html", context={
         "service": service,
         "backfill": backfill,
+        "archive": archive,
         "disk": disk,
         "chats": chats,
         "chat_count": len(chats),
@@ -259,6 +293,20 @@ async def ctl_backfill_stop(_=Depends(require_admin)):
 
 # ── публикация: отправка файла в чаты (Telethon) ─────────────────────
 _send_lock = asyncio.Lock()
+
+
+@app.post("/ctl/archive/start")
+async def ctl_archive_start(_=Depends(require_admin)):
+    """Бэкап вложений старше 4 мес. в Dropbox — тот же сервис, что запускает таймер."""
+    subprocess.run(["systemctl", "start", "--no-block", "tg-archive.service"], timeout=10)
+    return RedirectResponse("/", status_code=303)
+
+
+@app.post("/ctl/archive/stop")
+async def ctl_archive_stop(_=Depends(require_admin)):
+    """Прервать бэкап. Безопасно: файл удаляется с сервера только после сверки хэша."""
+    subprocess.run(["systemctl", "stop", "--no-block", "tg-archive.service"], timeout=10)
+    return RedirectResponse("/", status_code=303)
 
 
 @app.post("/ctl/send-file")
@@ -345,6 +393,100 @@ async def ctl_send_file(
         except OSError:
             pass
     return JSONResponse({"results": results})
+
+
+# ── Client API: отправка от имени аккаунта листенера (по can_write) ──
+_SEND_RATE = 20          # сообщений на клиента
+_SEND_WINDOW = 60        # за столько секунд
+_send_hist: dict = {}
+
+
+@app.post("/api/v1/send")
+async def api_send(
+    client: dict = Depends(require_client),
+    chat_id: int = Form(...),
+    text: str = Form(""),
+    reply_to: Optional[int] = Form(None),
+    file: Optional[UploadFile] = File(None),
+):
+    """Отправить текст и/или файл в один чат. multipart: chat_id, text,
+    reply_to (message_id, опц.), file (опц.). Нужен can_write клиента к чату.
+    С файлом text идёт подписью (лимит Telegram 1024), без файла — до 4096.
+    Ответ: {"chat_id", "message_id"}; 403 нет прав, 429 лимит/FloodWait,
+    502 ошибка Telegram."""
+    import os
+    import tempfile
+    import time
+    has_file = file is not None and bool(file.filename)
+    if not text.strip() and not has_file:
+        raise HTTPException(400, "нужен text или file")
+    if len(text) > (1024 if has_file else 4096):
+        raise HTTPException(400, "text слишком длинный (подпись ≤1024, сообщение ≤4096)")
+
+    acc = (sb.table("tg_client_chat_access").select("can_write")
+           .eq("client_id", client["id"]).eq("chat_id", chat_id)
+           .eq("can_write", True).execute().data)
+    if not acc:
+        raise HTTPException(403, "нет права на запись в этот чат")
+
+    now = time.monotonic()
+    hist = [t for t in _send_hist.get(client["id"], []) if now - t < _SEND_WINDOW]
+    if len(hist) >= _SEND_RATE:
+        raise HTTPException(429, f"лимит {_SEND_RATE} сообщений за {_SEND_WINDOW} сек")
+    hist.append(now)
+    _send_hist[client["id"]] = hist
+
+    from config import TG_API_ID, TG_API_HASH, TG_SESSION_PATH
+    try:
+        from config import TG_SESSION_SEND_PATH as _SESS
+    except ImportError:
+        _SESS = TG_SESSION_PATH
+    from telethon import TelegramClient
+    from telethon.errors import (FloodWaitError, ChatWriteForbiddenError,
+                                 ChannelPrivateError)
+    from telethon.tl.types import DocumentAttributeFilename
+
+    tmp = None
+    if has_file:
+        orig_name = os.path.basename(file.filename) or "file"
+        fd, tmp = tempfile.mkstemp(prefix="tgsend_", suffix=os.path.splitext(orig_name)[1])
+        with os.fdopen(fd, "wb") as fh:
+            fh.write(await file.read())
+    try:
+        async with _send_lock:
+            tg = TelegramClient(str(_SESS), TG_API_ID, TG_API_HASH)
+            await tg.connect()
+            try:
+                if not await tg.is_user_authorized():
+                    raise HTTPException(503, "send-session не авторизована")
+                if tmp:
+                    msg = await tg.send_file(
+                        chat_id, tmp, caption=text, force_document=True,
+                        reply_to=reply_to,
+                        attributes=[DocumentAttributeFilename(orig_name)])
+                else:
+                    msg = await tg.send_message(chat_id, text, reply_to=reply_to)
+            except FloodWaitError as e:
+                raise HTTPException(429, f"FloodWait: подождите {e.seconds} сек")
+            except ChatWriteForbiddenError:
+                raise HTTPException(403, "аккаунт не может писать в этот чат")
+            except ChannelPrivateError:
+                raise HTTPException(403, "аккаунт не состоит в этом чате")
+            except HTTPException:
+                raise
+            except Exception as e:
+                raise HTTPException(502, f"{type(e).__name__}: {e}")
+            finally:
+                await tg.disconnect()
+    finally:
+        if tmp:
+            try:
+                os.remove(tmp)
+            except OSError:
+                pass
+    print(f"  ✉ api/send: client={client.get('name')} chat={chat_id} "
+          f"msg={msg.id} file={'yes' if tmp else 'no'}", flush=True)
+    return {"chat_id": chat_id, "message_id": msg.id}
 
 
 # ── clients CRUD (admin pages) ──────────────────────────────────────
@@ -563,6 +705,11 @@ async def api_media(
             if cand.is_file():
                 full = cand.resolve(); break
     if full is None or not full.is_relative_to(base):
+        from archive_manifest import archived
+        arc = archived(_abs_chat_id(chat_id), message_id)
+        if arc:
+            raise HTTPException(410, f"Файл перенесён в архив (Dropbox), месяц {arc['month']}; "
+                                     f"на сервере хранятся последние 4 месяца")
         raise HTTPException(404, "Media file not on disk (not downloaded yet)")
     mime = m.get("media_mime") or mimetypes.guess_type(str(full))[0] or "application/octet-stream"
     # Сигнал: отдаём оригинал или сжатый образ (proxy). media_is_proxy появится

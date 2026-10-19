@@ -53,6 +53,33 @@
       {% endif %}
     </div>
   </div>
+
+  <div class="control-group">
+    <div class="control-header">
+      <span class="dot {% if archive.state in ('active', 'activating') %}dot-green{% elif archive.state == 'failed' %}dot-red{% endif %}"></span>
+      <strong>Бэкап вложений → Dropbox</strong>
+      <span class="badge {% if archive.state in ('active', 'activating') %}badge-ok{% else %}badge-off{% endif %}">
+        {% if archive.state in ('active', 'activating') %}идёт{% elif archive.state == 'failed' %}ошибка{% else %}не запущен{% endif %}
+      </span>
+      <span class="text-muted">· в архиве {{ archive.archived }} файлов, {{ archive.archived_gb }} GB
+        · на сервере хранятся последние 4 мес.
+        {% if archive.next %}· следующий: {{ archive.next }}{% endif %}</span>
+    </div>
+    {% if archive.last %}<div class="text-muted">{{ archive.last }}</div>{% endif %}
+    <div class="control-actions">
+      {% if archive.state in ('active', 'activating') %}
+      <form method="post" action="/ctl/archive/stop" class="inline-form"
+            onsubmit="return confirm('Прервать бэкап? Уже перенесённое сохранится.')">
+        <button class="btn btn-sm btn-danger">⏹ Прервать</button>
+      </form>
+      {% else %}
+      <form method="post" action="/ctl/archive/start" class="inline-form"
+            onsubmit="return confirm('Перенести вложения старше 4 месяцев в Dropbox и удалить их с сервера после сверки?')">
+        <button class="btn btn-sm btn-primary">💾 Бэкап сейчас</button>
+      </form>
+      {% endif %}
+    </div>
+  </div>
 </div>
 
 {# ── Status cards ── #}

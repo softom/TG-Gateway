@@ -1,0 +1,9 @@
+[Unit]
+Description=TG-Gateway: ежемесячный бэкап вложений (1-го числа, 03:00 UTC)
+
+[Timer]
+OnCalendar=*-*-01 03:00:00 UTC
+Persistent=true
+
+[Install]
+WantedBy=timers.target

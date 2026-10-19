@@ -47,6 +47,7 @@ Telegram ──MTProto──> [Aeza US: tg_raw_listener (systemd)] ──REST─
 | GET | `/api/v1/search?q=&sender=&chat_id=&…` | поиск по тексту+имени файла и/или отправителю |
 | GET | `/api/v1/media?chat_id=&message_id=` | байты вложения (заголовок `X-Media-Proxy`) |
 | GET | `/api/v1/status` | счётчики |
+| POST | `/api/v1/send` | текст/файл в чат по ключу клиента (`can_write`; multipart `chat_id,text,reply_to,file`; лимит 20/мин) |
 | GET | `/health` | healthcheck |
 | POST | `/ctl/send-file` | публикация файла в чаты (multipart; `admin_token`; 403 при плохом токене) |
 
