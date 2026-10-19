@@ -14,6 +14,8 @@ zpr-tg-listener и zpr-tg-backfill + pkill -f tg_raw_listener.py):
     python rebackfill_media.py --client <client_id>           # все пробелы клиента
     python rebackfill_media.py --since 2026-07-01 [--exclude <chat_id>,...]
                                                               # все чаты с даты; мелкие файлы первыми
+    ... --estimate   # только посчитать (без подключения к Telegram — можно при работающем листенере)
+Останавливается, когда свободного места меньше DISK_MIN_FREE_GB.
 Файлы, перенесённые в Dropbox-архив (ARCHIVED.tsv), не качаются.
 """
 import asyncio
@@ -27,7 +29,7 @@ from telethon import TelegramClient
 from supabase import create_client
 from tg_raw_listener import (_abs_chat_id, _sanitize, _default_filename,
                              _detect_media, TELEGRAM_STORAGE_ROOT, _DOWNLOAD_KINDS,
-                             MEDIA_SKIP_CHATS)
+                             MEDIA_SKIP_CHATS, DISK_MIN_FREE_GB, _disk_free_gb)
 from archive_manifest import archived
 
 sb = create_client(SUPABASE_URL, SUPABASE_SECRET_KEY)
@@ -78,7 +80,11 @@ def _since_targets(since: str, exclude: set[int]) -> list[tuple[int, int]]:
             if m["media_kind"] in _DOWNLOAD_KINDS and m["chat_id"] not in exclude
             and not _has_file(m["chat_id"], m["message_id"], m["media_path"])]
     todo.sort(key=lambda m: m.get("media_size") or 0)  # мелкие первыми: максимум файлов до упора в место
+    _SIZES.update({(m["chat_id"], m["message_id"]): m.get("media_size") or 0 for m in todo})
     return [(m["chat_id"], m["message_id"]) for m in todo]
+
+
+_SIZES: dict = {}
 
 
 async def main() -> None:
@@ -93,11 +99,19 @@ async def main() -> None:
     else:
         targets = [tuple(int(x) for x in a.split(":")) for a in args]
     print(f"targets (файлов к докачке): {len(targets)}", flush=True)
+    if _SIZES:
+        print(f"  объём ≈ {sum(_SIZES.values())/2**30:.2f} GB; свободно "
+              f"{_disk_free_gb(STORAGE_DIR):.1f} GB, порог {DISK_MIN_FREE_GB} GB", flush=True)
+    if "--estimate" in args or not targets:
+        return  # без подключения к Telegram (сессию держит листенер)
 
     client = TelegramClient(str(TG_SESSION_PATH), TG_API_ID, TG_API_HASH)
     await client.connect()
     ok = fail = skip = 0
     for chat_id, message_id in targets:
+        if _disk_free_gb(STORAGE_DIR) < DISK_MIN_FREE_GB:
+            print(f"  ⚠ свободно <{DISK_MIN_FREE_GB} GB — останавливаюсь", flush=True)
+            break
         try:
             msg = await client.get_messages(chat_id, ids=message_id)
         except Exception as e:
@@ -138,4 +152,5 @@ async def main() -> None:
     print(f"DONE ok={ok} fail={fail} skip={skip}", flush=True)
 
 
-asyncio.run(main())
+if __name__ == "__main__":
+    asyncio.run(main())
