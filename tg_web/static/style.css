@@ -148,6 +148,8 @@ input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 2px
   gap: 1rem;
 }
 .control-header { display: flex; align-items: center; gap: 0.5rem; }
+.control-main { display: flex; flex-direction: column; gap: 0.2rem; min-width: 0; }
+.control-sub { color: var(--text-2); font-size: 12px; }
 .control-actions { display: flex; align-items: center; gap: 0.5rem; }
 .control-form { display: flex; align-items: center; gap: 0.5rem; }
 .input-sm {

@@ -18,7 +18,10 @@
       {% if service.memory %}<span class="text-muted">· {{ service.memory }}</span>{% endif %}
     </div>
     <div class="control-actions">
-      {% if service.active == 'active' %}
+      {% if rebackfill.running %}
+      <span class="badge badge-ok" title="Telegram-сессия одна: на время докачки листенер остановлен и запустится сам">
+        пауза: докачка медиа {{ rebackfill.progress }}</span>
+      {% elif service.active == 'active' %}
       <form method="post" action="/ctl/listener/stop" class="inline-form">
         <button class="btn btn-sm btn-danger">⏹ Остановить</button>
       </form>
@@ -55,17 +58,17 @@
   </div>
 
   <div class="control-group">
-    <div class="control-header">
-      <span class="dot {% if archive.state in ('active', 'activating') %}dot-green{% elif archive.state == 'failed' %}dot-red{% endif %}"></span>
-      <strong>Бэкап вложений → Dropbox</strong>
-      <span class="badge {% if archive.state in ('active', 'activating') %}badge-ok{% else %}badge-off{% endif %}">
-        {% if archive.state in ('active', 'activating') %}идёт{% elif archive.state == 'failed' %}ошибка{% else %}не запущен{% endif %}
-      </span>
-      <span class="text-muted">· в архиве {{ archive.archived }} файлов, {{ archive.archived_gb }} GB
-        · на сервере хранятся последние 4 мес.
-        {% if archive.next %}· следующий: {{ archive.next }}{% endif %}</span>
+    <div class="control-main">
+      <div class="control-header">
+        <span class="dot {% if archive.state in ('active', 'activating') %}dot-green{% elif archive.state == 'failed' %}dot-red{% endif %}"></span>
+        <strong>Бэкап → Dropbox</strong>
+        <span class="badge {% if archive.state in ('active', 'activating') %}badge-ok{% else %}badge-off{% endif %}">
+          {% if archive.state in ('active', 'activating') %}идёт{% elif archive.state == 'failed' %}ошибка{% else %}ожидает{% endif %}
+        </span>
+      </div>
+      <div class="control-sub">в архиве {{ archive.archived }} файлов · {{ archive.archived_gb }} GB · на сервере 4 мес.</div>
+      <div class="control-sub">{% if archive.last %}{{ archive.last }}{% endif %}{% if archive.next %} · следующий {{ archive.next }}{% endif %}</div>
     </div>
-    {% if archive.last %}<div class="text-muted">{{ archive.last }}</div>{% endif %}
     <div class="control-actions">
       {% if archive.state in ('active', 'activating') %}
       <form method="post" action="/ctl/archive/stop" class="inline-form"

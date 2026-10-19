@@ -130,12 +130,18 @@ def _archive_status() -> dict:
             capture_output=True, text=True, timeout=5).stdout.strip()
     except Exception:
         pass
+    if info["next"]:
+        info["next"] = info["next"].split(" ")[1] if " " in info["next"] else info["next"]
     log = Path("/opt/zpr/logs/archive.log")
     if log.exists():
         try:
-            lines = [l for l in log.read_text(errors="replace").splitlines()
-                     if l.startswith("DONE") or "хранить с" in l or l.lstrip().startswith("...")]
-            info["last"] = " · ".join(lines[-2:])
+            lines = log.read_text(errors="replace").splitlines()
+            done = [l for l in lines if l.startswith("DONE")]
+            prog = [l.strip() for l in lines if l.lstrip().startswith("...")]
+            if info["state"] in ("active", "activating") and prog:
+                info["last"] = prog[-1].lstrip(". ")
+            elif done:
+                info["last"] = done[-1].replace("DONE ", "последний: ")
         except Exception:
             pass
     try:
@@ -147,6 +153,29 @@ def _archive_status() -> dict:
                                             if len(r) > 1 and r[1].isdigit()) / 2**30, 2)
     except Exception:
         pass
+    return info
+
+
+def _rebackfill_status() -> dict:
+    """Докачка медиа (rebackfill_media.py, unit tg-rebackfill) — на это время листенер остановлен."""
+    info = {"running": False, "progress": ""}
+    try:
+        info["running"] = subprocess.run(
+            ["systemctl", "is-active", "tg-rebackfill.service"],
+            capture_output=True, text=True, timeout=5).stdout.strip() in ("active", "activating")
+    except Exception:
+        pass
+    log = Path("/opt/zpr/logs/rebackfill.log")
+    if info["running"] and log.exists():
+        try:
+            lines = log.read_text(errors="replace").splitlines()
+            tot = [l for l in lines if l.startswith("targets")]
+            ok = [l.strip() for l in lines if l.lstrip().startswith("...")]
+            info["progress"] = " из ".join(x for x in [
+                ok[-1].lstrip(". ").split()[0] if ok else "0",
+                tot[-1].split(":")[-1].strip() if tot else ""] if x)
+        except Exception:
+            pass
     return info
 
 
@@ -203,6 +232,7 @@ async def dashboard(request: Request, _=Depends(require_admin)):
     service = _service_status()
     backfill = _backfill_status()
     archive = _archive_status()
+    rebackfill = _rebackfill_status()
     disk = _disk_info()
 
     # Все БД-запросы обёрнуты: tg_messages большая, на free-tier Supabase медленный
@@ -243,6 +273,7 @@ async def dashboard(request: Request, _=Depends(require_admin)):
         "service": service,
         "backfill": backfill,
         "archive": archive,
+        "rebackfill": rebackfill,
         "disk": disk,
         "chats": chats,
         "chat_count": len(chats),
